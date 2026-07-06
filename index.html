@@ -422,6 +422,34 @@
     color: rgba(244,241,230,0.6);
     margin:0 0 20px;
   }
+  .game-history{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:8px;
+    margin: -8px 0 20px;
+  }
+  .game-history .game-chip{
+    background: rgba(233,228,214,0.07);
+    border: 1px solid rgba(233,228,214,0.15);
+    border-radius:10px;
+    padding:7px 11px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color: rgba(244,241,230,0.8);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    min-width:52px;
+  }
+  .game-history .game-chip small{
+    font-size:10px;
+    color: rgba(244,241,230,0.45);
+    font-family:'Inter',sans-serif;
+  }
+  .game-history .game-chip.win-a{ border-color: var(--coral); }
+  .game-history .game-chip.win-b{ border-color: var(--sky); }
 </style>
 </head>
 <body>
@@ -433,6 +461,7 @@
   </div>
 
   <div class="match-strip" id="matchStrip"></div>
+  <div class="game-history" id="liveGameHistory" style="display:none; margin:-4px 0 0;"></div>
 
   <div class="board">
     <div class="teams-row">
@@ -541,6 +570,7 @@
     <div class="tag" id="resultTag">本局結束</div>
     <h3 id="resultTitle">A 隊 獲勝!</h3>
     <p id="resultSub">11 – 6</p>
+    <div class="game-history" id="gameHistoryList"></div>
     <button class="sheet-btn" id="resultNextBtn">開始下一局</button>
   </div>
 </div>
@@ -564,6 +594,7 @@
     serverNumber: 2,     // 開局第一球固定從 2 開始(只有一次發球機會)
     firstServeOfGame: true,
     gamesWon: [0,0],
+    gameHistory: [], // 每一局結束後的比分紀錄 {a, b, winner}
     settings: { target: 11, winBy2: true, bestOf: 1 },
     history: [],
     gameOver: false,
@@ -587,7 +618,8 @@
     return JSON.parse(JSON.stringify({
       scores: state.scores, servingTeam: state.servingTeam,
       serverNumber: state.serverNumber, firstServeOfGame: state.firstServeOfGame,
-      gamesWon: state.gamesWon, gameOver: state.gameOver, matchOver: state.matchOver
+      gamesWon: state.gamesWon, gameOver: state.gameOver, matchOver: state.matchOver,
+      gameHistory: state.gameHistory
     }));
   }
   function pushHistory(){
@@ -602,6 +634,7 @@
     if(s[w] >= t && (!state.settings.winBy2 || (s[w]-s[l])>=2)){
       state.gameOver = true;
       state.gamesWon[w]++;
+      state.gameHistory.push({ a: s[0], b: s[1], winner: w });
       showResult(w);
     }
   }
@@ -659,7 +692,7 @@
   }
 
   function fullReset(){
-    state.scores=[0,0]; state.gamesWon=[0,0];
+    state.scores=[0,0]; state.gamesWon=[0,0]; state.gameHistory=[];
     state.servingTeam=0; state.serverNumber=2; state.firstServeOfGame=true;
     state.gameOver=false; state.matchOver=false; state.history=[];
     state.nextGameStarter = 1;
@@ -676,6 +709,19 @@
     el('resultSub').textContent = state.scores[0] + ' – ' + state.scores[1] +
       (state.settings.bestOf>1 ? ('　(局數 ' + state.gamesWon[0] + ':' + state.gamesWon[1] + ')') : '');
     el('resultNextBtn').textContent = isMatchOver ? '開始新比賽' : '開始下一局';
+
+    const listEl = el('gameHistoryList');
+    if(state.settings.bestOf>1 && state.gameHistory.length>0){
+      listEl.style.display='flex';
+      listEl.innerHTML = state.gameHistory.map((g,i)=>{
+        const cls = g.winner===0 ? 'win-a' : 'win-b';
+        return `<div class="game-chip ${cls}"><small>第 ${i+1} 局</small>${g.a} – ${g.b}</div>`;
+      }).join('');
+    } else {
+      listEl.style.display='none';
+      listEl.innerHTML = '';
+    }
+
     el('resultOverlay').classList.add('show');
   }
   function hideResult(){ el('resultOverlay').classList.remove('show'); }
@@ -772,6 +818,18 @@
     } else {
       const typeLabel = state.matchType === 'singles' ? '單打賽' : '雙打賽';
       matchStrip.innerHTML = typeLabel+' · 先得 '+state.settings.target+' 分'+(state.settings.winBy2?'(須贏 2 分)':'');
+    }
+
+    const liveHistEl = el('liveGameHistory');
+    if(state.settings.bestOf>1 && state.gameHistory.length>0){
+      liveHistEl.style.display='flex';
+      liveHistEl.innerHTML = state.gameHistory.map((g,i)=>{
+        const cls = g.winner===0 ? 'win-a' : 'win-b';
+        return `<div class="game-chip ${cls}"><small>第 ${i+1} 局</small>${g.a} – ${g.b}</div>`;
+      }).join('');
+    } else {
+      liveHistEl.style.display='none';
+      liveHistEl.innerHTML='';
     }
   }
 
