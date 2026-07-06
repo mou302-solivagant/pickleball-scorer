@@ -785,6 +785,7 @@
   // settings sheet
   const settingsOverlay = el('settingsOverlay');
   el('settingsBtn').addEventListener('click', ()=>{
+    resetTempFromState();
     syncSettingsUI();
     settingsOverlay.classList.add('show');
   });
@@ -793,9 +794,11 @@
 
   let tempSettings = {...state.settings};
   let tempMatchType = state.matchType;
-  function syncSettingsUI(){
+  function resetTempFromState(){
     tempSettings = {...state.settings};
     tempMatchType = state.matchType;
+  }
+  function syncSettingsUI(){
     document.querySelectorAll('#targetSeg button').forEach(b=> b.classList.toggle('active', +b.dataset.v===tempSettings.target));
     document.querySelectorAll('#bestOfSeg button').forEach(b=> b.classList.toggle('active', +b.dataset.v===tempSettings.bestOf));
     document.querySelectorAll('#matchTypeSeg button').forEach(b=> b.classList.toggle('active', b.dataset.v===tempMatchType));
