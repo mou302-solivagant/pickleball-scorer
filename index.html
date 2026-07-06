@@ -479,6 +479,14 @@
     <h2>設定 <span class="icon-btn" id="closeSettings" style="width:32px;height:32px;font-size:15px;">✕</span></h2>
 
     <div class="field">
+      <label>比賽模式</label>
+      <div class="seg" id="matchTypeSeg">
+        <button data-v="doubles">雙打</button>
+        <button data-v="singles">單打</button>
+      </div>
+    </div>
+
+    <div class="field">
       <label>主題配色</label>
       <div class="theme-swatches" id="themeSwatches"></div>
     </div>
@@ -549,6 +557,7 @@
   const state = {
     themeIndex: 0,
     customColors: { a:null, b:null },
+    matchType: 'doubles', // 'doubles' | 'singles'
     names: ['A 隊','B 隊'],
     scores: [0,0],
     servingTeam: 0,
@@ -603,6 +612,9 @@
     if(team === state.servingTeam){
       state.scores[team]++;
       checkGameWin();
+    } else if(state.matchType === 'singles'){
+      // 單打:接發球方得分即直接換邊發球,沒有兩條命
+      state.servingTeam = team;
     } else {
       if(state.serverNumber === 1){
         state.serverNumber = 2;
@@ -725,8 +737,16 @@
     scoreB.textContent = state.scores[1];
     panelA.classList.toggle('serving', state.servingTeam===0);
     panelB.classList.toggle('serving', state.servingTeam===1);
-    ballA.textContent = state.serverNumber;
-    ballB.textContent = state.serverNumber;
+
+    if(state.matchType === 'singles'){
+      const side = (state.scores[state.servingTeam] % 2 === 0) ? '右' : '左';
+      ballA.textContent = side;
+      ballB.textContent = side;
+    } else {
+      ballA.textContent = state.serverNumber;
+      ballB.textContent = state.serverNumber;
+    }
+
     el('btnALabel').textContent = (state.names[0]) + ' 得分';
     el('btnBLabel').textContent = (state.names[1]) + ' 得分';
     el('teamAColorLabel').textContent = state.names[0];
@@ -736,7 +756,12 @@
     const receiver = state.scores[1-state.servingTeam];
     const orderedFirst = state.servingTeam===0 ? server : receiver;
     const orderedSecond = state.servingTeam===0 ? receiver : server;
-    callScore.innerHTML = orderedFirst + ' – ' + orderedSecond + ' – <b>' + state.serverNumber + '</b>';
+    if(state.matchType === 'singles'){
+      const side = (server % 2 === 0) ? '右發' : '左發';
+      callScore.innerHTML = orderedFirst + ' – ' + orderedSecond + ' – <b>' + side + '</b>';
+    } else {
+      callScore.innerHTML = orderedFirst + ' – ' + orderedSecond + ' – <b>' + state.serverNumber + '</b>';
+    }
 
     // match strip: games won pips
     if(state.settings.bestOf>1){
@@ -745,7 +770,8 @@
       let pipsB=''; for(let i=0;i<need;i++) pipsB += '<span class="pip '+(i<state.gamesWon[1]?'won':'')+'"></span>';
       matchStrip.innerHTML = state.names[0]+' <span class="pips">'+pipsA+'</span>　·　<span class="pips">'+pipsB+'</span> '+state.names[1];
     } else {
-      matchStrip.innerHTML = '單局賽 · 先得 '+state.settings.target+' 分'+(state.settings.winBy2?'(須贏 2 分)':'');
+      const typeLabel = state.matchType === 'singles' ? '單打賽' : '雙打賽';
+      matchStrip.innerHTML = typeLabel+' · 先得 '+state.settings.target+' 分'+(state.settings.winBy2?'(須贏 2 分)':'');
     }
   }
 
@@ -766,13 +792,19 @@
   el('cancelSettings').addEventListener('click', ()=> settingsOverlay.classList.remove('show'));
 
   let tempSettings = {...state.settings};
+  let tempMatchType = state.matchType;
   function syncSettingsUI(){
     tempSettings = {...state.settings};
+    tempMatchType = state.matchType;
     document.querySelectorAll('#targetSeg button').forEach(b=> b.classList.toggle('active', +b.dataset.v===tempSettings.target));
     document.querySelectorAll('#bestOfSeg button').forEach(b=> b.classList.toggle('active', +b.dataset.v===tempSettings.bestOf));
+    document.querySelectorAll('#matchTypeSeg button').forEach(b=> b.classList.toggle('active', b.dataset.v===tempMatchType));
     el('winBy2Switch').classList.toggle('on', tempSettings.winBy2);
     renderThemeSwatches();
   }
+  document.querySelectorAll('#matchTypeSeg button').forEach(b=>{
+    b.addEventListener('click', ()=>{ tempMatchType = b.dataset.v; syncSettingsUI(); });
+  });
   document.querySelectorAll('#targetSeg button').forEach(b=>{
     b.addEventListener('click', ()=>{ tempSettings.target = +b.dataset.v; syncSettingsUI(); });
   });
@@ -783,6 +815,7 @@
 
   el('applySettings').addEventListener('click', ()=>{
     state.settings = {...tempSettings};
+    state.matchType = tempMatchType;
     settingsOverlay.classList.remove('show');
     fullReset();
   });
