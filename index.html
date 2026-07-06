@@ -336,6 +336,56 @@
     font-size:14.5px;
     cursor:pointer;
   }
+  .theme-swatches{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:8px;
+  }
+  .theme-swatch{
+    border-radius:12px;
+    padding:10px 4px 8px;
+    border:2px solid transparent;
+    background: rgba(233,228,214,0.06);
+    cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .theme-swatch.active{ border-color: var(--ball); }
+  .theme-swatch .dots{ display:flex; gap:4px; }
+  .theme-swatch .dots span{
+    width:14px; height:14px; border-radius:50%;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .theme-swatch small{
+    font-size:10.5px;
+    color: rgba(244,241,230,0.7);
+    font-weight:600;
+  }
+  .color-pick-row{
+    display:flex; gap:10px;
+  }
+  .color-pick{
+    flex:1;
+    display:flex; align-items:center; gap:10px;
+    background: rgba(233,228,214,0.06);
+    border:1px solid var(--line-dim);
+    border-radius:12px;
+    padding:8px 12px;
+  }
+  .color-pick input[type=color]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:34px; height:34px;
+    border:none;
+    border-radius:50%;
+    padding:0;
+    background:none;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .color-pick input[type=color]::-webkit-color-swatch-wrapper{ padding:0; border-radius:50%; }
+  .color-pick input[type=color]::-webkit-color-swatch{ border:2px solid rgba(255,255,255,0.35); border-radius:50%; }
+  .color-pick span{ font-size:13px; font-weight:600; }
+
   .sheet-btn.ghost{
     background: transparent;
     border:1px solid var(--line-dim);
@@ -429,6 +479,25 @@
     <h2>設定 <span class="icon-btn" id="closeSettings" style="width:32px;height:32px;font-size:15px;">✕</span></h2>
 
     <div class="field">
+      <label>主題配色</label>
+      <div class="theme-swatches" id="themeSwatches"></div>
+    </div>
+
+    <div class="field">
+      <label>隊伍顏色(自訂)</label>
+      <div class="color-pick-row">
+        <div class="color-pick">
+          <input type="color" id="teamAColor" value="#FF7A59">
+          <span id="teamAColorLabel">A 隊</span>
+        </div>
+        <div class="color-pick">
+          <input type="color" id="teamBColor" value="#6FD6E0">
+          <span id="teamBColorLabel">B 隊</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
       <label>單局目標分數</label>
       <div class="seg" id="targetSeg">
         <button data-v="11">11</button>
@@ -470,7 +539,16 @@
 
 <script>
 (function(){
+  const THEMES = [
+    { name:'湖水藍(預設)', navy:'#123138', teal:'#1B5C63', tealLight:'#256B72', ball:'#E4F24A', ballDark:'#B9C82E', coral:'#FF7A59', sky:'#6FD6E0' },
+    { name:'日落橘紫',     navy:'#2B1B3D', teal:'#4A2E6B', tealLight:'#5E3A82', ball:'#FFB238', ballDark:'#E0932A', coral:'#FF5470', sky:'#FF9F6B' },
+    { name:'森林綠',       navy:'#14261B', teal:'#1E4B32', tealLight:'#2A5F40', ball:'#D4E64A', ballDark:'#A9BB2E', coral:'#E8724A', sky:'#6FBF8E' },
+    { name:'極簡深夜',     navy:'#10141C', teal:'#1A2230', tealLight:'#232D40', ball:'#E8E3D3', ballDark:'#C9C4B4', coral:'#7C9CFF', sky:'#58D3C4' }
+  ];
+
   const state = {
+    themeIndex: 0,
+    customColors: { a:null, b:null },
     names: ['A 隊','B 隊'],
     scores: [0,0],
     servingTeam: 0,
@@ -594,6 +672,54 @@
     if(state.matchOver){ fullReset(); } else { newGame(true); }
   });
 
+  function applyTheme(){
+    const t = THEMES[state.themeIndex];
+    const root = document.documentElement.style;
+    root.setProperty('--court-navy', t.navy);
+    root.setProperty('--court-teal', t.teal);
+    root.setProperty('--court-teal-light', t.tealLight);
+    root.setProperty('--ball', t.ball);
+    root.setProperty('--ball-dark', t.ballDark);
+    root.setProperty('--coral', state.customColors.a || t.coral);
+    root.setProperty('--sky', state.customColors.b || t.sky);
+    teamAColor.value = toHex(state.customColors.a || t.coral);
+    teamBColor.value = toHex(state.customColors.b || t.sky);
+  }
+  function toHex(c){
+    // already hex strings in our palette
+    return c;
+  }
+  function renderThemeSwatches(){
+    const wrap = el('themeSwatches');
+    wrap.innerHTML = THEMES.map((t,i)=>`
+      <div class="theme-swatch ${i===state.themeIndex?'active':''}" data-i="${i}">
+        <div class="dots">
+          <span style="background:${t.navy}"></span>
+          <span style="background:${t.ball}"></span>
+          <span style="background:${t.coral}"></span>
+          <span style="background:${t.sky}"></span>
+        </div>
+        <small>${t.name}</small>
+      </div>`).join('');
+    wrap.querySelectorAll('.theme-swatch').forEach(sw=>{
+      sw.addEventListener('click', ()=>{
+        state.themeIndex = +sw.dataset.i;
+        state.customColors = { a:null, b:null }; // 換主題時重置自訂色
+        applyTheme();
+        renderThemeSwatches();
+      });
+    });
+  }
+  const teamAColor = el('teamAColor'), teamBColor = el('teamBColor');
+  teamAColor.addEventListener('input', ()=>{
+    state.customColors.a = teamAColor.value;
+    document.documentElement.style.setProperty('--coral', teamAColor.value);
+  });
+  teamBColor.addEventListener('input', ()=>{
+    state.customColors.b = teamBColor.value;
+    document.documentElement.style.setProperty('--sky', teamBColor.value);
+  });
+
   function render(){
     scoreA.textContent = state.scores[0];
     scoreB.textContent = state.scores[1];
@@ -603,6 +729,8 @@
     ballB.textContent = state.serverNumber;
     el('btnALabel').textContent = (state.names[0]) + ' 得分';
     el('btnBLabel').textContent = (state.names[1]) + ' 得分';
+    el('teamAColorLabel').textContent = state.names[0];
+    el('teamBColorLabel').textContent = state.names[1];
 
     const server = state.scores[state.servingTeam];
     const receiver = state.scores[1-state.servingTeam];
@@ -643,6 +771,7 @@
     document.querySelectorAll('#targetSeg button').forEach(b=> b.classList.toggle('active', +b.dataset.v===tempSettings.target));
     document.querySelectorAll('#bestOfSeg button').forEach(b=> b.classList.toggle('active', +b.dataset.v===tempSettings.bestOf));
     el('winBy2Switch').classList.toggle('on', tempSettings.winBy2);
+    renderThemeSwatches();
   }
   document.querySelectorAll('#targetSeg button').forEach(b=>{
     b.addEventListener('click', ()=>{ tempSettings.target = +b.dataset.v; syncSettingsUI(); });
@@ -658,6 +787,7 @@
     fullReset();
   });
 
+  applyTheme();
   render();
 })();
 
